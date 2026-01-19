@@ -1,0 +1,11 @@
+{
+  "name": "CON-A Excel Processor",
+  "description": "Excel 데이터 처리 웹 애플리케이션",
+  "repository": "https://github.com/yourusername/your-repo",
+  "keywords": ["flask", "excel", "openpyxl"],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
