@@ -1,15 +1,22 @@
 from io import BytesIO
-from flask import Flask, render_template, request, send_file, jsonify, session
+from flask import Flask, render_template, request, send_file, jsonify, session, redirect, url_for
 import pandas as pd
 import openpyxl
 from openpyxl.utils import get_column_letter
 from datetime import datetime
 import os
 import secrets
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import json
 
 app = Flask(__name__)
 # Vercel 배포를 위한 시크릿 키 (환경 변수 또는 랜덤 생성)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
+
+# Google OAuth 설정
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 
 # 전역 변수: 생성된 엑셀 워크북 저장 (세션별)
 # 세션 ID를 키로 사용하여 각 사용자별로 독립적인 워크북 관리
@@ -317,13 +324,22 @@ def index():
             'rows': sheet_rows
         }
     
+    # 로그인 상태 확인
+    is_logged_in = session.get('google_logged_in', False)
+    login_method = session.get('login_method', None)
+    user_info = session.get('user_info', {})
+    
     return render_template(
         "index.html",
         message=message,
         error=error,
         sheet_info=sheet_info,
         sheet_data=sheet_data,
-        session_id=session_id
+        session_id=session_id,
+        is_logged_in=is_logged_in,
+        login_method=login_method,
+        user_info=user_info,
+        google_client_id=GOOGLE_CLIENT_ID
     )
 
 
@@ -358,14 +374,107 @@ def download():
 @app.route("/clear", methods=["POST"])
 def clear():
     """현재 세션의 워크북 초기화"""
-    from flask import redirect, url_for
-    
     session_id = session.get('session_id')
     
     if session_id and session_id in workbooks:
         del workbooks[session_id]
     
     return redirect(url_for('index'))
+
+
+@app.route("/auth/google")
+def google_auth():
+    """Google 로그인 시작"""
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({"error": "Google OAuth가 설정되지 않았습니다."}), 400
+    
+    # Google OAuth 인증 URL 생성
+    redirect_uri = request.url_root.rstrip('/') + url_for('google_callback')
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={redirect_uri}&"
+        f"response_type=code&"
+        f"scope=openid email profile&"
+        f"access_type=offline"
+    )
+    return redirect(auth_url)
+
+
+@app.route("/auth/google/callback")
+def google_callback():
+    """Google OAuth 콜백"""
+    code = request.args.get('code')
+    error = request.args.get('error')
+    
+    if error:
+        return redirect(url_for('index'))
+    
+    if not code:
+        return redirect(url_for('index'))
+    
+    try:
+        import requests as http_requests
+        
+        # 토큰 교환
+        redirect_uri = request.url_root.rstrip('/') + url_for('google_callback')
+        token_url = 'https://oauth2.googleapis.com/token'
+        
+        token_data = {
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code'
+        }
+        
+        token_response = http_requests.post(token_url, data=token_data)
+        token_json = token_response.json()
+        
+        if 'id_token' in token_json:
+            # ID 토큰 검증
+            idinfo = id_token.verify_oauth2_token(
+                token_json['id_token'],
+                google_requests.Request(),
+                GOOGLE_CLIENT_ID
+            )
+            
+            # 사용자 정보 세션에 저장
+            session['google_logged_in'] = True
+            session['login_method'] = 'google'
+            session['user_info'] = {
+                'email': idinfo.get('email'),
+                'name': idinfo.get('name'),
+                'picture': idinfo.get('picture')
+            }
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        # 에러 발생 시 로그인 없이 계속 사용 가능
+        return redirect(url_for('index'))
+
+
+@app.route("/auth/logout")
+def logout():
+    """로그아웃"""
+    session.pop('google_logged_in', None)
+    session.pop('login_method', None)
+    session.pop('user_info', None)
+    return redirect(url_for('index'))
+
+
+@app.route("/auth/status")
+def auth_status():
+    """로그인 상태 확인"""
+    is_logged_in = session.get('google_logged_in', False)
+    login_method = session.get('login_method', None)
+    user_info = session.get('user_info', {})
+    
+    return jsonify({
+        "logged_in": is_logged_in,
+        "login_method": login_method,
+        "user_info": user_info
+    })
 
 
 if __name__ == "__main__":
