@@ -1,9 +1,14 @@
-# Vercel 배포 가이드
+# Vercel 배포 가이드 - QUAZ 갤러리
+
+## 프로젝트 정보
+- **프로젝트 이름**: QUAZ 갤러리 (네이비 블루 게시판)
+- **기능**: 게시물 CRUD, 댓글/대댓글, 검색, 트렌드 페이지, 장르 필터
 
 ## GitHub 푸시 완료 ✅
 코드가 성공적으로 GitHub에 푸시되었습니다:
 - Repository: `https://github.com/jh-sh7/CON-A_excel.git`
 - Branch: `main`
+- **참고**: 저장소 이름은 CON-A_excel이지만, 메인 프로젝트는 QUAZ 갤러리입니다.
 
 ## Vercel 배포 방법
 
@@ -26,8 +31,7 @@
 
 4. **환경 변수 설정** (선택사항)
    - `SECRET_KEY`: Flask 세션 키 (랜덤 문자열)
-   - `GOOGLE_CLIENT_ID`: Google OAuth 클라이언트 ID (선택)
-   - `GOOGLE_CLIENT_SECRET`: Google OAuth 클라이언트 시크릿 (선택)
+     - 생성 방법: Python에서 `import secrets; print(secrets.token_hex(32))` 실행
 
 5. **배포**
    - "Deploy" 버튼 클릭
@@ -62,9 +66,11 @@ vercel --prod
 
 ### 배포 후 확인
 배포가 완료되면 다음 URL로 접속:
-- `https://your-project-name.vercel.app/` - QUAZ 갤러리 메인
-- `https://your-project-name.vercel.app/trends` - 트렌드 페이지
-- `https://your-project-name.vercel.app/excel` - 엑셀 앱
+- `https://your-project-name.vercel.app/` - **QUAZ 갤러리 메인** (게시물 목록)
+- `https://your-project-name.vercel.app/trends` - **요즘 트렌드** (조회수 높은 게시물)
+- `https://your-project-name.vercel.app/write` - 글쓰기
+- `https://your-project-name.vercel.app/admin` - 관리자 페이지
+- `https://your-project-name.vercel.app/excel` - CON-A 엑셀 앱 (기존 기능)
 
 ## 문제 해결
 
