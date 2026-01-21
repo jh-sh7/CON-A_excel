@@ -21,9 +21,14 @@ workbooks = {}
 #############################################
 
 def _quaz_db_path():
-    instance_dir = os.path.join(app.root_path, "instance")
-    os.makedirs(instance_dir, exist_ok=True)
-    return os.path.join(instance_dir, "quaz_gallery.db")
+    # Vercel serverless 환경에서는 /tmp 디렉토리 사용
+    if os.environ.get('VERCEL'):
+        db_dir = '/tmp'
+    else:
+        instance_dir = os.path.join(app.root_path, "instance")
+        os.makedirs(instance_dir, exist_ok=True)
+        db_dir = instance_dir
+    return os.path.join(db_dir, "quaz_gallery.db")
 
 
 def quaz_get_db():
@@ -619,6 +624,8 @@ def clear():
     return redirect(url_for('index'))
 
 
+# Vercel에서 사용하는 진입점
+# @vercel/python은 app 객체를 자동으로 감지합니다
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
