@@ -1,0 +1,36 @@
+{% extends "quaz_base.html" %}
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      {% if mode == 'edit' %}
+        <h2>게시물 수정</h2>
+      {% else %}
+        <h2>글쓰기</h2>
+      {% endif %}
+      <div class="muted">이미지/동영상 링크 첨부 가능</div>
+    </div>
+    <form class="form" method="post">
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      <div class="field">
+        <label>제목</label>
+        <input class="input" name="title" maxlength="120" value="{{ post.title }}" placeholder="제목을 입력하세요" required />
+      </div>
+      <div class="field">
+        <label>내용</label>
+        <textarea class="textarea" name="content" placeholder="내용을 입력하세요" required>{{ post.content }}</textarea>
+      </div>
+      <div class="field">
+        <label>이미지/동영상 링크 (선택)</label>
+        <input class="input" name="media_url" value="{{ post.media_url }}" placeholder="예) https://..." />
+        <div class="help">링크가 있으면 상세 페이지에서 클릭/미리보기로 표시됩니다.</div>
+      </div>
+      <div class="footer-actions">
+        <button class="btn primary" type="submit">{% if mode == 'edit' %}수정 저장{% else %}등록{% endif %}</button>
+        <a class="btn" href="{{ url_for('quaz_index') }}">취소</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+

@@ -1,0 +1,56 @@
+{% extends "quaz_base.html" %}
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <h2>🔥 요즘 트렌드</h2>
+      <div class="muted">조회수 높은 인기 게시물</div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:60px;">순위</th>
+          <th style="width:84px;">번호</th>
+          <th>제목</th>
+          <th style="width:160px;">작성일</th>
+          <th style="width:90px;">조회수</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if posts %}
+          {% for p in posts %}
+            <tr>
+              <td class="muted" style="text-align:center; font-weight:700;">
+                {% if loop.index <= 3 %}
+                  <span style="color:#ff6b6b;">{{ loop.index }}</span>
+                {% else %}
+                  {{ loop.index }}
+                {% endif %}
+              </td>
+              <td class="muted">{{ p.id }}</td>
+              <td>
+                <a class="title-link" href="{{ url_for('quaz_post_detail', post_id=p.id) }}">{{ p.title }}</a>
+              </td>
+              <td class="muted">{{ p.created_at }}</td>
+              <td class="muted" style="font-weight:700; color:#1f4aa8;">{{ p.views }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5" class="muted">아직 트렌드 게시물이 없습니다.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <h2 style="font-size:14px;">📊 트렌드 안내</h2>
+    </div>
+    <div class="post-body" style="font-size:13px; line-height:1.8;">
+      <p style="margin:0 0 8px 0;">• 조회수가 높은 게시물을 실시간으로 정렬하여 보여드립니다.</p>
+      <p style="margin:0 0 8px 0;">• 상위 3개 게시물은 빨간색으로 강조 표시됩니다.</p>
+      <p style="margin:0;">• 최대 50개의 인기 게시물을 확인할 수 있습니다.</p>
+    </div>
+  </div>
+{% endblock %}

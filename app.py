@@ -6,6 +6,7 @@ from openpyxl.utils import get_column_letter
 from datetime import datetime
 import os
 import secrets
+import sqlite3
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import json
@@ -21,6 +22,258 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 # 전역 변수: 생성된 엑셀 워크북 저장 (세션별)
 # 세션 ID를 키로 사용하여 각 사용자별로 독립적인 워크북 관리
 workbooks = {}
+
+#############################################
+# QUAZ 갤러리 (간단 게시판) - SQLite 기반
+#############################################
+
+def _quaz_db_path():
+    instance_dir = os.path.join(app.root_path, "instance")
+    os.makedirs(instance_dir, exist_ok=True)
+    return os.path.join(instance_dir, "quaz_gallery.db")
+
+
+def quaz_get_db():
+    conn = sqlite3.connect(_quaz_db_path())
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def quaz_init_db():
+    conn = quaz_get_db()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                media_url TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT,
+                views INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL,
+                parent_id INTEGER,
+                author TEXT,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(post_id) REFERENCES posts(id)
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _now_iso():
+    return datetime.now().isoformat(timespec="seconds")
+
+
+@app.before_request
+def _ensure_quaz_db():
+    quaz_init_db()
+
+
+@app.route("/", methods=["GET"])
+def quaz_index():
+    """QUAZ 갤러리 - 게시물 목록 (최신글 내림차순)"""
+    q = (request.args.get("q") or "").strip()
+    conn = quaz_get_db()
+    try:
+        if q:
+            like = f"%{q}%"
+            posts = conn.execute(
+                """
+                SELECT id, title, created_at, views
+                FROM posts
+                WHERE title LIKE ? OR content LIKE ?
+                ORDER BY datetime(created_at) DESC, id DESC
+                """,
+                (like, like),
+            ).fetchall()
+        else:
+            posts = conn.execute(
+                """
+                SELECT id, title, created_at, views
+                FROM posts
+                ORDER BY datetime(created_at) DESC, id DESC
+                """
+            ).fetchall()
+    finally:
+        conn.close()
+    return render_template("quaz_index.html", posts=posts, q=q)
+
+
+@app.route("/write", methods=["GET", "POST"])
+def quaz_write():
+    """글쓰기 페이지 (이미지/동영상 링크 첨부 가능)"""
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        content = (request.form.get("content") or "").strip()
+        media_url = (request.form.get("media_url") or "").strip() or None
+
+        if not title or not content:
+            return render_template(
+                "quaz_form.html",
+                mode="create",
+                error="제목과 내용을 입력해주세요.",
+                post={"title": title, "content": content, "media_url": media_url or ""},
+            )
+
+        conn = quaz_get_db()
+        try:
+            conn.execute(
+                "INSERT INTO posts(title, content, media_url, created_at) VALUES(?,?,?,?)",
+                (title, content, media_url, _now_iso()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        return redirect(url_for("quaz_index"))
+
+    return render_template("quaz_form.html", mode="create", post={"title": "", "content": "", "media_url": ""})
+
+
+@app.route("/post/<int:post_id>", methods=["GET"])
+def quaz_post_detail(post_id: int):
+    """게시물 상세 + 조회수 증가 + 댓글/대댓글"""
+    conn = quaz_get_db()
+    try:
+        conn.execute("UPDATE posts SET views = views + 1 WHERE id = ?", (post_id,))
+        conn.commit()
+
+        post = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        if not post:
+            return "게시물을 찾을 수 없습니다.", 404
+
+        comments = conn.execute(
+            """
+            SELECT id, post_id, parent_id, author, content, created_at
+            FROM comments
+            WHERE post_id = ?
+            ORDER BY datetime(created_at) ASC, id ASC
+            """,
+            (post_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    by_parent = {}
+    for c in comments:
+        by_parent.setdefault(c["parent_id"], []).append(c)
+
+    def build_tree(parent_id):
+        items = []
+        for c in by_parent.get(parent_id, []):
+            items.append({"comment": c, "replies": build_tree(c["id"])})
+        return items
+
+    comment_tree = build_tree(None)
+    return render_template("quaz_post_detail.html", post=post, comment_tree=comment_tree)
+
+
+@app.route("/post/<int:post_id>/comment", methods=["POST"])
+def quaz_add_comment(post_id: int):
+    author = (request.form.get("author") or "").strip() or None
+    content = (request.form.get("content") or "").strip()
+    parent_id_raw = (request.form.get("parent_id") or "").strip()
+    parent_id = int(parent_id_raw) if parent_id_raw.isdigit() else None
+
+    if not content:
+        return redirect(url_for("quaz_post_detail", post_id=post_id))
+
+    conn = quaz_get_db()
+    try:
+        conn.execute(
+            "INSERT INTO comments(post_id, parent_id, author, content, created_at) VALUES(?,?,?,?,?)",
+            (post_id, parent_id, author, content, _now_iso()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return redirect(url_for("quaz_post_detail", post_id=post_id))
+
+
+@app.route("/post/<int:post_id>/edit", methods=["GET", "POST"])
+def quaz_edit_post(post_id: int):
+    conn = quaz_get_db()
+    try:
+        post = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        if not post:
+            return "게시물을 찾을 수 없습니다.", 404
+
+        if request.method == "POST":
+            title = (request.form.get("title") or "").strip()
+            content = (request.form.get("content") or "").strip()
+            media_url = (request.form.get("media_url") or "").strip() or None
+
+            if not title or not content:
+                return render_template(
+                    "quaz_form.html",
+                    mode="edit",
+                    error="제목과 내용을 입력해주세요.",
+                    post={"id": post_id, "title": title, "content": content, "media_url": media_url or ""},
+                )
+
+            conn.execute(
+                "UPDATE posts SET title=?, content=?, media_url=?, updated_at=? WHERE id=?",
+                (title, content, media_url, _now_iso(), post_id),
+            )
+            conn.commit()
+            return redirect(url_for("quaz_post_detail", post_id=post_id))
+    finally:
+        conn.close()
+
+    return render_template(
+        "quaz_form.html",
+        mode="edit",
+        post={"id": post["id"], "title": post["title"], "content": post["content"], "media_url": post["media_url"] or ""},
+    )
+
+
+@app.route("/post/<int:post_id>/delete", methods=["POST"])
+def quaz_delete_post(post_id: int):
+    conn = quaz_get_db()
+    try:
+        conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
+        conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect(url_for("quaz_index"))
+
+
+@app.route("/trends", methods=["GET"])
+def quaz_trends():
+    """요즘 트렌드 - 조회수 높은 게시물 목록"""
+    conn = quaz_get_db()
+    try:
+        posts = conn.execute(
+            """
+            SELECT id, title, created_at, views
+            FROM posts
+            ORDER BY views DESC, datetime(created_at) DESC
+            LIMIT 50
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+    return render_template("quaz_trends.html", posts=posts)
+
+
+@app.route("/admin", methods=["GET"])
+def quaz_admin():
+    return render_template("quaz_admin.html")
 
 
 def get_or_create_workbook(session_id):
@@ -253,9 +506,9 @@ def create_jipgye_sheet(wb, data_list, sheet_name="집계"):
     return ws
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/excel", methods=["GET", "POST"])
 def index():
-    """메인 페이지"""
+    """(기존) CON-A 메인 페이지"""
     session_id = session.get('session_id')
     if not session_id:
         session_id = datetime.now().strftime('%Y%m%d%H%M%S%f')

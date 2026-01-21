@@ -1,0 +1,107 @@
+{% extends "quaz_base.html" %}
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0 0 6px 0;">{{ post.title }}</h2>
+        <div class="post-meta">
+          <span>작성일: {{ post.created_at }}</span>
+          {% if post.updated_at %}<span>수정일: {{ post.updated_at }}</span>{% endif %}
+          <span>조회수: {{ post.views }}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="{{ url_for('quaz_edit_post', post_id=post.id) }}">수정</a>
+        <form method="post" action="{{ url_for('quaz_delete_post', post_id=post.id) }}" onsubmit="return confirm('정말 삭제하시겠습니까?');" style="margin:0;">
+          <button class="btn danger" type="submit">삭제</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="post-body">{{ post.content }}</div>
+
+    {% if post.media_url %}
+      <div class="media">
+        <div class="muted" style="margin-bottom:6px;">첨부 링크</div>
+        <a href="{{ post.media_url }}" target="_blank" rel="noopener noreferrer">{{ post.media_url }}</a>
+        {% if "youtube.com" in post.media_url or "youtu.be" in post.media_url %}
+          <div style="margin-top:12px;">
+            <iframe
+              width="100%"
+              height="380"
+              style="border:0; border-radius:12px;"
+              src="https://www.youtube.com/embed/{{ post.media_url.split('v=')[-1].split('&')[0].split('/')[-1] }}"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="comments">
+      <h3 style="margin:0 0 10px 0; font-size:14px;">댓글</h3>
+
+      <form method="post" action="{{ url_for('quaz_add_comment', post_id=post.id) }}" class="form" style="padding:0; margin-bottom:14px;">
+        <input type="hidden" name="parent_id" value="" />
+        <div class="field">
+          <label>작성자 (선택)</label>
+          <input class="input" name="author" maxlength="40" placeholder="익명" />
+        </div>
+        <div class="field">
+          <label>댓글 내용</label>
+          <textarea class="textarea" name="content" style="min-height:90px;" placeholder="댓글을 입력하세요" required></textarea>
+        </div>
+        <div class="footer-actions" style="padding:0;">
+          <button class="btn primary" type="submit">댓글 등록</button>
+        </div>
+      </form>
+
+      {% macro render_nodes(nodes) %}
+        {% for node in nodes %}
+          <div class="comment">
+            <div class="meta">
+              <span>{{ node.comment.author if node.comment.author else "익명" }}</span>
+              <span>{{ node.comment.created_at }}</span>
+            </div>
+            <div style="white-space: pre-wrap; line-height:1.6;">{{ node.comment.content }}</div>
+
+            <div style="margin-top:10px;">
+              <button class="btn" type="button" onclick="toggleReplyForm({{ node.comment.id }})">대댓글</button>
+            </div>
+
+            <div class="reply-form" id="reply-form-{{ node.comment.id }}">
+              <form method="post" action="{{ url_for('quaz_add_comment', post_id=post.id) }}" class="form" style="padding:10px 0 0 0;">
+                <input type="hidden" name="parent_id" value="{{ node.comment.id }}" />
+                <div class="field">
+                  <label>작성자 (선택)</label>
+                  <input class="input" name="author" maxlength="40" placeholder="익명" />
+                </div>
+                <div class="field">
+                  <label>대댓글 내용</label>
+                  <textarea class="textarea" name="content" style="min-height:80px;" placeholder="대댓글을 입력하세요" required></textarea>
+                </div>
+                <div class="footer-actions" style="padding:0;">
+                  <button class="btn primary" type="submit">대댓글 등록</button>
+                </div>
+              </form>
+            </div>
+
+            {% if node.replies and node.replies|length > 0 %}
+              <div class="reply">
+                {{ render_nodes(node.replies) }}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endmacro %}
+
+      {% if comment_tree and comment_tree|length > 0 %}
+        {{ render_nodes(comment_tree) }}
+      {% else %}
+        <div class="muted">아직 댓글이 없습니다.</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+

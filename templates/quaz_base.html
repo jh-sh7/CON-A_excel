@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QUAZ 갤러리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='quaz.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <h1>QUAZ 갤러리</h1>
+          <small>네이비 블루 게시판</small>
+        </div>
+        <div class="actions">
+          <form class="search" method="get" action="{{ url_for('quaz_index') }}">
+            <input class="search-input" name="q" value="{{ request.args.get('q','') }}" placeholder="검색어 입력" />
+            <button class="btn primary" type="submit">검색</button>
+            {% if request.args.get('q') %}
+              <a class="btn" href="{{ url_for('quaz_index') }}">전체</a>
+            {% endif %}
+          </form>
+          <button class="btn" type="button" id="genreBtn" aria-expanded="false" onclick="toggleGenres()">장르</button>
+          <a class="btn" href="{{ url_for('quaz_index') }}">목록</a>
+          <a class="btn" href="{{ url_for('quaz_trends') }}">요즘 트렌드</a>
+          <a class="btn primary" href="{{ url_for('quaz_write') }}">글쓰기</a>
+          <button class="btn" type="button" onclick="alert('신승원 개발. 자유롭게 작성해주세요.')">관리자</button>
+        </div>
+      </div>
+
+      <div class="genre-panel" id="genrePanel" style="display:none;">
+        <div class="genre-grid">
+          <span class="genre-pill">음악</span>
+          <span class="genre-pill">컴퓨터</span>
+          <span class="genre-pill">애니</span>
+          <span class="genre-pill">유머</span>
+          <span class="genre-pill">책</span>
+          <span class="genre-pill">학업</span>
+          <span class="genre-pill">논란</span>
+          <span class="genre-pill">게임</span>
+          <span class="genre-pill">연애인</span>
+          <span class="genre-pill">연애</span>
+          <span class="genre-pill">인기</span>
+          <span class="genre-pill">경제</span>
+          <span class="genre-pill">정치</span>
+          <span class="genre-pill">IT</span>
+          <span class="genre-pill">총기</span>
+          <span class="genre-pill">보컬로이드</span>
+        </div>
+      </div>
+
+      {% block content %}{% endblock %}
+    </div>
+
+    <script>
+      function toggleGenres() {
+        const panel = document.getElementById('genrePanel');
+        const btn = document.getElementById('genreBtn');
+        if (!panel || !btn) return;
+        const open = panel.style.display !== 'none';
+        panel.style.display = open ? 'none' : 'block';
+        btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      }
+
+      function toggleReplyForm(id) {
+        const el = document.getElementById('reply-form-' + id);
+        if (!el) return;
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+      }
+    </script>
+  </body>
+</html>
+
