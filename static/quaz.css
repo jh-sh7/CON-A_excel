@@ -227,3 +227,202 @@ a{color:inherit}
   flex-wrap:wrap;
   padding: 0 16px 16px;
 }
+
+/* 모바일 반응형 스타일 */
+@media (max-width: 768px) {
+  .container{
+    padding: 12px 8px 40px;
+  }
+  
+  .topbar{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .brand h1{
+    font-size: 16px;
+  }
+  
+  .brand small{
+    font-size: 11px;
+  }
+  
+  .actions{
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .search{
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .search-input{
+    width: 100%;
+    max-width: 100%;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+  
+  .actions > .btn,
+  .actions > a.btn{
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .card-header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  .card-header h2{
+    font-size: 14px;
+  }
+  
+  .table{
+    font-size: 12px;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table th,
+  .table td{
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+  
+  .table th:first-child,
+  .table td:first-child{
+    position: sticky;
+    left: 0;
+    background: var(--card);
+    z-index: 1;
+  }
+  
+  .form{
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .field label{
+    font-size: 13px;
+  }
+  
+  .input,
+  .textarea{
+    font-size: 16px; /* iOS 줌 방지 */
+    padding: 12px;
+  }
+  
+  .textarea{
+    min-height: 150px;
+  }
+  
+  .post-body{
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  
+  .post-meta{
+    font-size: 11px;
+    gap: 8px;
+  }
+  
+  .comments{
+    padding: 12px;
+  }
+  
+  .comment{
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .comment .meta{
+    font-size: 11px;
+  }
+  
+  .reply{
+    margin-left: 12px;
+    padding-left: 10px;
+  }
+  
+  .footer-actions{
+    padding: 0 12px 12px;
+    flex-direction: column;
+  }
+  
+  .footer-actions .btn{
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .genre-panel{
+    margin-top: 8px;
+    padding: 10px;
+  }
+  
+  .genre-grid{
+    gap: 8px;
+  }
+  
+  .genre-pill{
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .card{
+    margin-top: 12px;
+    border-radius: 12px;
+  }
+  
+  .btn{
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container{
+    padding: 8px 6px 30px;
+  }
+  
+  .topbar{
+    padding: 10px;
+    border-radius: 12px;
+  }
+  
+  .brand h1{
+    font-size: 15px;
+  }
+  
+  .table{
+    font-size: 11px;
+  }
+  
+  .table th,
+  .table td{
+    padding: 6px 8px;
+  }
+  
+  .card-header{
+    padding: 10px;
+  }
+  
+  .form{
+    padding: 10px;
+  }
+  
+  .post-body{
+    padding: 10px;
+    font-size: 13px;
+  }
+}
